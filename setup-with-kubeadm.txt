@@ -83,6 +83,15 @@ sudo yum -y install docker-ce-17.03.2.ce-1.el7.centos.x86_64.rpm
 sudo systemctl enable docker
 sudo systemctl start docker
 
+# We need a recent mainline kernel for Ceph
+sudo rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
+sudo rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
+sudo yum -y --enablerepo=elrepo-kernel install kernel-ml
+cat /etc/default/grub | sed 's/GRUB_DEFAULT=.*/GRUB_DEFAULT=0/g' > /tmp/newgrub
+sudo cp /tmp/newgrub /etc/default/grub
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+sudo grub2-mkconfig -o /boot/efi/EFI/centos/grub.cfg
+
 # Clean restart
 sudo shutdown -r now
 
@@ -155,6 +164,7 @@ kubectl apply -f rook-cluster.yaml
 kubectl apply -f rook-storageclass.yaml
 kubectl create -f rook-filesystem.yaml
 kubectl create -f rook-tools.yaml
+sudo modprobe rbd (all nodes)
 kubectl -n rook exec -ti rook-tools bash
 rookctl status
 ceph status
