@@ -1,8 +1,8 @@
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: monitoring
+#---
+#apiVersion: v1
+#kind: Namespace
+#metadata:
+#  name: monitoring
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -45,6 +45,23 @@ subjects:
   name: prometheus
   namespace: monitoring
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-data-claim
+  annotations:
+    pv.beta.kubernetes.io/gid: "2000"
+  namespace: monitoring
+  labels:
+    k8s-app: prometheus
+spec:
+  storageClassName: rook-block
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi
+---
 kind: ConfigMap
 metadata:
   name: prometheus-config
@@ -55,8 +72,8 @@ data:
     global:
       scrape_interval: 30s
       scrape_timeout: 30s
-    external_labels:
-      monitor: 'test-swarm'
+      external_labels:
+        monitor: 'test-k8shc'
 
     # Load and evaluate rules in this file every 'evaluation_interval' seconds.
     rule_files:
@@ -334,12 +351,11 @@ data:
       - source_labels: [__meta_kubernetes_pod_name]
         action: replace
         target_label: kubernetes_pod_name
-     - job_name: 'es-exporter'
-       dns_sd_configs:
-       - names:
-         - 'tasks.es-exporter'
-         type: 'A'
-         port: 8080
+
+    - job_name: 'es-exporter'
+      static_configs:
+      - targets: ['es-exporter.monitoring:8080']
+
 
   alert.rules: |-
     groups:
@@ -429,14 +445,16 @@ spec:
         prometheus.io/port: "9090"
     spec:
       serviceAccountName: prometheus
+      securityContext:
+        fsGroup: 2000
       containers:
         - args:
           - --config.file=/etc/prometheus/prometheus.yml
-#        - --storage.local.path=/prometheus
-#        - --storage.local.retention=24h
+          - --storage.tsdb.path=/prometheus
+          - --storage.tsdb.retention=30d
           command:
           - /bin/prometheus
-          image: quay.io/prometheus/prometheus:v2.0.0
+          image: quay.io/prometheus/prometheus:v2.1.0
           imagePullPolicy: IfNotPresent
           name: prometheus
           ports:
@@ -445,7 +463,7 @@ spec:
           resources:
             limits:
               cpu: 500m
-              memory: 2500Mi
+              memory: 1500Mi
             requests:
               cpu: 100m
               memory: 100Mi
@@ -455,11 +473,11 @@ spec:
             - mountPath: /etc/prometheus
               name: config-volume
       restartPolicy: Always
-      securityContext: {}
       terminationGracePeriodSeconds: 30
       volumes:
         - name: data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: prometheus-data-claim
         - name: config-volume
           configMap:
             name: prometheus-config
@@ -486,7 +504,7 @@ metadata:
     kubernetes.io/ingress.class: traefik
 spec:
   rules:
-  - host: prometheus.lift
+  - host: prometheus.k8shc
     http:
       paths:
         - path: /

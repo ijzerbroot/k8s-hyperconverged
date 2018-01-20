@@ -23,6 +23,8 @@ data:
     osd pool default pg num = 60
     osd pool default pgp num = 60
     mon clock drift allowed = .500
+    # For single-node testing:
+    osd crush chooseleaf type = 0
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1

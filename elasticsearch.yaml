@@ -1,0 +1,168 @@
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: elasticsearch
+  labels:
+    k8s-app: elasticsearch
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - "services"
+  - "namespaces"
+  - "endpoints"
+  verbs:
+  - "get"
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  namespace: default
+  name: elasticsearch
+  labels:
+    k8s-app: elasticsearch
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+subjects:
+- kind: ServiceAccount
+  name: elasticsearch
+  namespace: default
+  apiGroup: ""
+roleRef:
+  kind: ClusterRole
+  name: elasticsearch
+  apiGroup: ""
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elasticsearch
+  namespace: default
+  labels:
+    k8s-app: elasticsearch
+    version: v1
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elasticsearch-data-claim
+  annotations:
+    pv.beta.kubernetes.io/gid: "2000"
+  namespace: default
+  labels:
+    k8s-app: elasticsearch
+spec:
+  storageClassName: rook-block
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  namespace: default
+  labels:
+    k8s-app: elasticsearch
+    version: v1
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: elasticsearch
+      version: v1
+  template:
+    metadata:
+      labels:
+        k8s-app: elasticsearch
+        version: v1
+        kubernetes.io/cluster-service: "true"
+    spec:
+      serviceAccountName: elasticsearch
+      securityContext:
+        runAsUser: 2000
+        fsGroup: 2000
+#      affinity:
+# Make sure you have labelled the worker nodes with kubectl label nodes nodename role=worker-node
+#        nodeAffinity:
+#          requiredDuringSchedulingIgnoredDuringExecution:
+#            nodeSelectorTerms:
+#            - matchExpressions:
+#              - key: role
+#                operator: In
+#                values:
+#                - worker-node
+      volumes:
+        - name: elasticsearchdata
+          persistentVolumeClaim:
+            claimName: elasticsearch-data-claim
+      containers:
+        - image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.1.1
+#            allowPrivilegeEscalation: false
+          name: elasticsearch
+          env:
+            - name: ES_JAVA_OPTS
+              value: "-Xmx512m -Xms512m"
+          securityContext:
+            allowPrivilegeEscalation: false
+          resources:
+            # need more cpu upon initialization, therefore burstable class
+            limits:
+              memory: 1200Mi
+            requests:
+              memory: 800Mi
+          ports:
+            - containerPort: 9200
+              name: db
+              protocol: TCP
+            - containerPort: 9300
+              name: transport
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /usr/share/elasticsearch/data
+              name: elasticsearchdata
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: default
+  labels:
+    k8s-app: elasticsearch
+    kubernetes.io/cluster-service: "true"
+    addonmanager.kubernetes.io/mode: Reconcile
+    kubernetes.io/name: "Elasticsearch"
+spec:
+  ports:
+  - port: 9200
+    protocol: TCP
+    targetPort: db
+  selector:
+    k8s-app: elasticsearch
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: elasticsearch-ui
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: es.k8shc
+    http:
+      paths:
+        - path: /
+          backend:
+            serviceName: elasticsearch
+            servicePort: 9200
