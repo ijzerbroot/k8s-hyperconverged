@@ -164,12 +164,16 @@ kubectl apply -f rook-cluster.yaml
 kubectl apply -f rook-storageclass.yaml
 kubectl create -f rook-filesystem.yaml
 kubectl create -f rook-tools.yaml
-sudo modprobe rbd (all nodes)
 kubectl -n rook exec -ti rook-tools bash
 rookctl status
 ceph status
 ceph df
 
+# Then order:
+# traefik
+# kubernetes-dashboard
+# influxdb
+# heapster
 
 ###### labelling nodes in case you want to separate intended workload #####
 #kubectl label nodes firstnodename role=rolename
