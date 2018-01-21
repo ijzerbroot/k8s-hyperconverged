@@ -272,7 +272,7 @@ data:
       - source_labels: [__address__]
         target_label: __param_target
       - target_label: __address__
-        replacement: blackbox-exporter.example.com:9115
+        replacement: nodeexporter:9100
       - source_labels: [__param_target]
         target_label: instance
       - action: labelmap
@@ -306,7 +306,7 @@ data:
           replacement: ${1}://${2}${3}
           target_label: __param_target
         - target_label: __address__
-          replacement: blackbox-exporter.example.com:9115
+          replacement: es-exporter:8080
         - source_labels: [__param_target]
           target_label: instance
         - action: labelmap
@@ -355,7 +355,6 @@ data:
     - job_name: 'es-exporter'
       static_configs:
       - targets: ['es-exporter.monitoring:8080']
-
 
   alert.rules: |-
     groups:
