@@ -95,6 +95,74 @@ sudo grub2-mkconfig -o /boot/efi/EFI/centos/grub.cfg
 # Clean restart
 sudo shutdown -r now
 
+
+############# OPTIONAL CEPH on host ##########################
+docker run -d \
+--name ceph \
+-e MON_IP=10.1.1.10 \
+-e CEPH_PUBLIC_NETWORK=10.1.1.0/24 \
+-e CEPH_CLUSTER_NETWORK=10.1.1.0/24 \
+-e CEPH_DEMO_UID=800 \
+--net=host \
+-v /var/lib/ceph:/var/lib/ceph \
+-v /etc/ceph:/etc/ceph \
+ceph/daemon \
+demo
+
+
+
+# mount datafs on /var/lib/ceph/osd
+
+sudo docker run -d --net=host --name cephmon -v /etc/ceph:/etc/ceph -v /var/lib/ceph:/var/lib/ceph -e MON_IP=10.1.1.10 -e CEPH_PUBLIC_NETWORK=10.1.1.0/24 ceph/daemon mon
+
+#edit /etc/ceph/ceph.conf to read something like:
+[global]
+fsid = 288f905a-75c8-4279-9312-a97d325d55b3
+mon initial members = swarmmgr.localdomain
+mon host = 10.1.1.10
+public network = 10.1.1.0/24
+cluster network = 10.1.1.0/24
+osd journal size = 100
+log file = /dev/null
+mon data avail crit = 5
+osd pool default size = 1
+osd pool default pg num = 60
+osd pool default pgp num = 60
+mon clock drift allowed = .500
+# For single-node testing:
+osd crush chooseleaf type = 0
+#osd data = /cephdata/storage
+#osd journal = /cephdata/metadata
+osd journal size = 1024
+
+stop the mon, start the mon and then:
+
+sudo docker update --restart=always cephmon
+
+start a manager:
+sudo docker run -d --net=host --name cephmgr -v /etc/ceph:/etc/ceph -v /var/lib/ceph/:/var/lib/ceph/ ceph/daemon mgr
+
+sudo docker run -d --net=host --pid=host --name cephosd --privileged -v /etc/ceph:/etc/ceph -v /var/lib/ceph/:/var/lib/ceph/ -v /dev:/dev ceph/daemon osd
+
+sudo docker exec cephmon ceph mgr module enable dashboard
+# dashboard on http://hostname:7000
+
+sudo docker exec cephmgr ceph osd pool create cephpool 60 60
+sudo docker exec cephmgr ceph osd pool set cephpool size 1
+
+# Set pool to be for block devices:
+sudo docker exec cephmgr rbd pool init cephpool
+
+# Create a block device:
+sudo docker exec cephmgr rbd create --size {megabytes} {pool-name}/{image-name} --image-feature layering
+
+
+# client side:
+sudo docker run --rm -it -v /etc/ceph:/etc/ceph --name cephbase --privileged --net=host -v /dev/:/dev ceph/base
+#map a device:
+rbd map -m 10.1.1.10 cephpool/docker_test
+############# END OPTIONAL CEPH on host ######################
+
 # Normal case. Use latest stable Kubernetes release.
 export RELEASE="$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)"
 sudo mkdir -p /opt/bin
