@@ -22,6 +22,7 @@ sudo mkdir -p /cephdata/rook/rookmetadata && sudo mkdir -p /cephdata/rook/storag
 ###### END ON STORAGE NODES ########
 
 # The script is expected to be executed as user "admin", who has to have sudo-privileges.
+# NTP may not be necessary if chronyd is already running
 sudo yum -y update
 sudo yum -y install ntp git
 sudo systemctl enable ntpd.service
@@ -63,6 +64,10 @@ sudo systemctl start disable-thp
 # Add CNI tools to the system-wide path
 sudo bash -c "echo 'PATH=/opt/bin:/opt/cni/bin:$PATH ; export PATH' > /etc/profile.d/sapienza.sh"
 sudo chmod a+rx /etc/profile.d/sapienza.sh
+
+# Add CNI tools to the sudo path
+sudo bash -c "cat /etc/sudoers | sed 's/secure_path = /secure_path = \/opt\/bin:\/opt\/cni\/bin:/' > /tmp/sudoers.new"
+sudo cp /tmp/sudoers.new /etc/sudoers
 
 # Remove existing Docker if installed
 sudo yum -y remove docker docker-common docker-selinux docker-engine
@@ -193,10 +198,6 @@ curl -L "https://raw.githubusercontent.com/kubernetes/kubernetes/${BRANCH}/build
 sudo mkdir -p /var/lib/kubelet/volumeplugins
 cat /etc/systemd/system/kubelet.service.d/10-kubeadm.conf | sed 's/--bootstrap-kubeconfig=/--volume-plugin-dir=\/var\/lib\/kubelet\/volumeplugins --bootstrap-kubeconfig=/' > /tmp/kubeconfig.new
 sudo cp /tmp/kubeconfig.new /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-
-# Add CNI tools to the sudo path
-sudo bash -c "cat /etc/sudoers | sed 's/secure_path = /secure_path = \/opt\/bin:\/opt\/cni\/bin:/' > /tmp/sudoers.new"
-sudo cp /tmp/sudoers.new /etc/sudoers
 
 
 ##### ONLY ON MASTER #####
