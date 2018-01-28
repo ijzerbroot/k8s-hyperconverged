@@ -37,6 +37,49 @@ subjects:
   namespace: kube-system
 ---
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traefik-config
+  namespace: kube-system
+  labels:
+    k8s-app: traefik-ingress-lb
+    kubernetes.io/cluster-service: "true"
+data:
+  traefik.toml: |-
+    # traefik.toml
+    [accessLog]
+
+    defaultEntryPoints = ["http","management"]
+    [entryPoints]
+      [entryPoints.http]
+      address = ":80"
+      [entryPoints.management]
+      address = ":8888"
+      [entryPoints.management.auth.basic]
+      users = ["admin:$apr1$FOFQY2lF$1R/dTOgdvqmA2.PTUCUIt1"]
+      #  [entryPoints.http.redirect]
+      #  entryPoint = "https"
+      #[entryPoints.https]
+      #address = ":443"
+      #[entryPoints.https.tls]
+      #minVersion = "VersionTLS12"
+      #cipherSuites = ["TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256","TLS_RSA_WITH_AES_256_GCM_SHA384"]
+      #  [[entryPoints.https.tls.certificates]]
+      #  certFile = "certs/cert.crt"
+      #  keyFile = "certs/key.key"
+      #[backends]
+      #  [backends.scope]
+      #    [backends.scope.server1]
+      #    url = "http://127.0.0.1:4040"
+
+      #[frontends]
+      #  [frontends.scope]
+      #  backend = "scope"
+      #    [frontends.scope.routes.test_1]
+      #    rule = "Host:scope.test.lift.swarm"
+      #    entryPoints = "management"
+---
+apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: traefik-ingress-controller
@@ -72,9 +115,21 @@ spec:
           containerPort: 8080
         securityContext:
           privileged: true
+        volumeMounts:
+        - name: traefik-config
+          mountPath: /config
+          readOnly: true
+          #subPath: traefik.toml
+      volumes:
+      - name: traefik-config
+        configMap:
+          defaultMode: 0600
+          name: traefik-config
         args:
         - --web
         - --kubernetes
+        - --configfile=/config/traefik.toml
+        - -l WARN
 ---
 kind: Service
 apiVersion: v1

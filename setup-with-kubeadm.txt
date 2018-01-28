@@ -204,7 +204,7 @@ sudo cp /tmp/kubeconfig.new /etc/systemd/system/kubelet.service.d/10-kubeadm.con
 # The apiserver-advertise-address is necesary on multi-homed hosts. Specify an address that is reachable from all nodes.
 # The pod-network depends on the SDN-provider used. In this case it is set for Calico
 # This example will install the latest stable version of Kubernetes
-sudo kubeadm init --apiserver-advertise-address=10.1.1.10 --pod-network-cidr=192.168.0.0/16 | tee /home/admin/kubeadminit.log
+sudo kubeadm init --apiserver-advertise-address=10.1.1.10 --pod-network-cidr=192.168.0.0/16 | tee /home/frank/kubeadminit.log
 
 # Special case: use specified Kubernetes version. It needs to be the same as chosen earlier in this script.
 #sudo kubeadm init --kubernetes-version v1.9.1 --apiserver-advertise-address=10.1.1.10 --pod-network-cidr=192.168.0.0/16 | tee /home/admin/kubeadminit.log
