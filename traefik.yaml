@@ -120,16 +120,16 @@ spec:
           mountPath: /config
           readOnly: true
           #subPath: traefik.toml
-      volumes:
-      - name: traefik-config
-        configMap:
-          defaultMode: 0600
-          name: traefik-config
         args:
         - --web
         - --kubernetes
         - --configfile=/config/traefik.toml
         - -l WARN
+      volumes:
+      - name: traefik-config
+        configMap:
+          defaultMode: 0600
+          name: traefik-config
 ---
 kind: Service
 apiVersion: v1
