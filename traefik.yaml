@@ -124,7 +124,7 @@ spec:
         - --web
         - --kubernetes
         - --configfile=/config/traefik.toml
-        - -l WARN
+#        - -l WARN
       volumes:
       - name: traefik-config
         configMap:
@@ -146,7 +146,7 @@ spec:
     - protocol: TCP
       port: 8080
       name: admin
-  type: NodePort
+#  type: NodePort
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
